@@ -1,4 +1,4 @@
-package module_13.hometask_01;
+package module_13.hometask_all;
 
 public class User {
     public Integer id;
