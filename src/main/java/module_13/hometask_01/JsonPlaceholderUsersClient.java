@@ -10,6 +10,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.List;
 
 public class JsonPlaceholderUsersClient {
@@ -104,5 +107,79 @@ public class JsonPlaceholderUsersClient {
         if (resp.statusCode() / 100 != 2) {
             throw new RuntimeException("HTTP " + resp.statusCode() + ": " + resp.body());
         }
+    }
+
+    public static class Post {
+        public int userId;
+        public int id;
+        public String title;
+        public String body;
+    }
+
+    public String saveCommentLastPost(int userId) throws IOException, InterruptedException {
+        HttpRequest postsReq = HttpRequest.newBuilder()
+                .uri(URI.create(BASE + "/users/" + userId + "/posts"))
+                .GET()
+                .build();
+
+        HttpResponse<String> postsResp = http.send(postsReq, HttpResponse.BodyHandlers.ofString());
+        ensure2xx(postsResp);
+
+        List<Post> posts = mapper.readValue(postsResp.body(), new TypeReference<List<Post>>() {});
+        if (posts.isEmpty()) {
+            throw new IllegalStateException("User " +  userId + " has no posts");
+        }
+
+        Post lastPost = posts.stream()
+                .max(Comparator.comparingInt(p -> p.id))
+                .orElseThrow();
+
+        int postId = lastPost.id;
+
+        HttpRequest commentsReq = HttpRequest.newBuilder()
+                .uri(URI.create(BASE + "/posts/" + postId + "/comments"))
+                .GET()
+                .build();
+
+        HttpResponse<String> commentsResp = http.send(commentsReq, HttpResponse.BodyHandlers.ofString());
+        ensure2xx(commentsResp);
+
+        String commentsJson = commentsResp.body();
+
+        System.out.println(commentsJson);
+
+        String fileName = "user-" + userId + "-post-" + postId + "-comments.json";
+        Files.writeString(Path.of(fileName), commentsJson, StandardCharsets.UTF_8);
+
+        return fileName;
+    }
+
+    public static class Todo {
+        public int userId;
+        public int id;
+        public String title;
+        public boolean completed;
+    }
+
+    public List<Todo> printOpenTodos(int userId) throws IOException, InterruptedException {
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(BASE + "/users/" + userId + "/todos"))
+                .GET()
+                .build();
+
+        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+        ensure2xx(resp);
+
+        List<Todo> todos = mapper.readValue(resp.body(), new TypeReference<List<Todo>>() {});
+
+        List<Todo> open = todos.stream()
+                .filter(t -> !t.completed)
+                .toList();
+
+        for (Todo t : open) {
+            System.out.println("[" + t.id + "] " + t.title);
+        }
+
+        return open;
     }
 }

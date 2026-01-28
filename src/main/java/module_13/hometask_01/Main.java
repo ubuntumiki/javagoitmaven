@@ -30,8 +30,16 @@ public class Main {
 
         User updated = client.updateUser(idToUpdate, created);
         System.out.println("Updated email: " + updated.email);
+        System.out.println();
 
         boolean deleted = client.deleteUser(1);
         System.out.println("Deleted status (id=1): " + deleted);
+        System.out.println();
+
+        String file = client.saveCommentLastPost(1);
+        System.out.println("Saved to: " + file);
+        System.out.println();
+
+        client.printOpenTodos(1);
     }
 }
